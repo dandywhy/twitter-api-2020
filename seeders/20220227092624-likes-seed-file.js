@@ -1,6 +1,5 @@
 'use strict';
-const faker = require('faker');
-const user = require('../models/user');
+const faker = require('faker')
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
@@ -12,19 +11,25 @@ module.exports = {
       'SELECT id FROM Tweets;',
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     )
-    //每篇推文都有使用者按喜歡
+    const likesNum = 3
     await queryInterface.bulkInsert('Likes',
       Array.from({ length: tweets.length }, (_, i) => ({
         createdAt: new Date(),
         updatedAt: new Date(),
-        TweetId: tweets[Math.floor(Math.random() * tweets.length)].id,
-        UserId: users[Math.floor(i/ (tweets.length/users.length))].id,
+        TweetId: tweets[Math.floor(i / likesNum)].id,
+        UserId: users[Math.floor(Math.random() * users.length)].id,
         isDeleted: false
       }))
     )
   },
 
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.bulkDelete('Likes', null, {})
+  down: (queryInterface, Sequelize) => {
+    /*
+      Add reverting commands here.
+      Return a promise to correctly handle asynchronicity.
+
+      Example:
+      return queryInterface.bulkDelete('People', null, {});
+    */
   }
-}
+};
