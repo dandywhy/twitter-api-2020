@@ -270,12 +270,17 @@ const userController = {
   },
   getUserFollowers: async (req, res, next) => {
     try {
-      const user = await User.findByPk(req.params.id)
-      console.log(helpers.getUser(req))
+      const { id } = helpers.getUser(req)
+      const userId = req.params.id
+      const user = await User.findByPk(userId)
       const followship = await Followship.findAll({
         where: {
-          followingId: req.params.id
+          followingId: userId
         },
+        attributes: ['id', 'followingId', 'followerId', 'createdAt'],
+        order: [['createdAt', 'desc']],
+        raw: true,
+        nest: true,
         include: {
           model: User,
           as: 'follower',
@@ -286,13 +291,16 @@ const userController = {
             'avatar',
             'introduction'
           ],
-        },
-        attributes: ['id', 'followingId', 'followerId', 'createdAt'],
-        order: [['createdAt', 'desc']],
-        raw: true,
-        nest: true
+          include: [
+            {
+              model: User,
+              as: 'Followers',
+              attributes: ['id']
+            }
+          ]
+        }
       })
-      console.log(followship)
+
       if (!user) {
         return res
           .status(404)
@@ -301,23 +309,17 @@ const userController = {
             message: '使用者不存在'
           })
       }
-      if (followship.length === 0) {
-        return res
-          .status(400)
-          .json({
-            status: 'error',
-            message: '此使用者沒有跟隨者'
-          })
-      } else {
-        const userFollowers = followship
-          .map(userFollower => ({
-            ...userFollower,
-            isFollowed: req.user.Followers.some(f => f.id === userFollower.id)
-          }))
-        console.log('=================')
-        console.log(userFollowers)
-        return res.status(200).json(userFollowers)
-      }
+      if (followship.length === 0) res.status(400).json({
+        status: 'error',
+        message: '此使用者沒有跟隨者'
+      })
+
+      const userFollowers = followship
+        .map(userFollower => ({
+          ...userFollower,
+          isFollowed: userFollower.follower.Followers.id ? userFollower.follower.Followers.some(f => f.id === id) : false
+      }))
+      return res.status(200).json(userFollowers)
     } catch (error) {
       res.status(500).json({
         status: 'error',
@@ -355,7 +357,7 @@ const userController = {
     try {
       const id = +req.params.id
       const userId = helpers.getUser(req).id
-      const { account, name, email, password, checkPassword, introduction, cover, avatar } = req.body
+      const { account, name, email, password, checkPassword, introduction } = req.body
       const { files } = req
 
       if (userId !== id) return res.status(400).json({
@@ -364,7 +366,7 @@ const userController = {
       })
       if (email && !validator.isEmail(email)) throw new Error('請輸入正確信箱格式')
 
-      if (password && !validator.isByteLength(password, { min: 4 })) throw new Error('密碼請輸入至少 4 個!')
+      if (password && !validator.isLength(password, { min: 4 })) throw new Error('密碼請輸入至少 4 個!')
 
       if (password !== checkPassword) throw new Error('兩次密碼不相符')
 
